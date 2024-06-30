@@ -7,10 +7,24 @@ todo_route =Blueprint('todos',__name__,url_prefix='/api/')
 
 # Get todos
 @todo_route.route("/todos",methods=['GET'])
-def get_Todos():
-    myTodos = Todos.query.all()
-    todo_dicts = [todo.to_json() for todo in myTodos]
-    return {'result': todo_dicts},200
+def get_todos():
+    number = request.args.get('number')  # Access the 'number' parameter
+
+    if number:  # If a number query parameter is present
+        try:
+            number = int(number)  # Convert the string value to an integer
+            if number <= 0:
+                return jsonify({'message': 'Invalid number: Must be positive'}), 400  # Handle invalid number
+            my_todos = Todos.query.limit(number).all()
+            todo_dicts = [todo.to_json() for todo in my_todos]
+            return {'result': todo_dicts}, 200
+        except ValueError:
+            return jsonify({'message': 'Invalid number format: Must be an integer'}), 400  # Handle non-integer input
+
+    else:  # If no number query parameter is provided
+        my_todos = Todos.query.all()
+        todo_dicts = [todo.to_json() for todo in my_todos]
+        return {'result': todo_dicts}, 200
 
 
 # Make a todo
