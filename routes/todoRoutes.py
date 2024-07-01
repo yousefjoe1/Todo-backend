@@ -9,6 +9,18 @@ todo_route =Blueprint('todos',__name__,url_prefix='/api/')
 @todo_route.route("/todos",methods=['GET'])
 def get_todos():
     number = request.args.get('number')  # Access the 'number' parameter
+    completed = request.args.get('completed')  # Access the 'number' parameter
+
+    if completed:
+        # Filter by completed status (assuming a boolean 'done' field in your Todo model)
+        try:
+            completed_value = bool(completed.lower())  # Convert 'completed' to boolean (case-insensitive)
+            my_todos = Todos.query.filter_by(done=completed_value).all()
+            todo_dicts = [todo.to_json() for todo in my_todos]
+            return {'result': todo_dicts}, 200
+        except ValueError:
+            return jsonify({'message': 'Invalid completed value: Must be "true" or "false"'}), 400
+
 
     if number:  # If a number query parameter is present
         try:
