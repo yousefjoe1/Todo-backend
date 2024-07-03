@@ -26,7 +26,7 @@ def create_user():
         name = data['name']
         email = data['email']
         password = data['password']
-        new_user = Users(name=name ,password=secur.get_pass_hash(password),email=email)
+        new_user = Users(name=name ,password=secur.get_password_hash(password),email=email)
 
         try:
             db.session.add(new_user)
@@ -44,10 +44,9 @@ def login():
     data = request.json
     email = data['email']
     password = data['password']
-    # print(email,'email','pass: ',password)
 
     user = Users.query.filter_by(email=email).first()
-    print(user)
+    # print(user)
     if not user:
         return jsonify({'message': 'Invalid email'}), 401
     try:

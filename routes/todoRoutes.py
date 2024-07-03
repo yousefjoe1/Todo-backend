@@ -1,7 +1,13 @@
 from database.db import db
 from flask import request, jsonify,Blueprint
+from flask_jwt_extended import get_jwt_identity
+from flask_jwt_extended import jwt_required
+
+
 
 from models.todo import Todos
+from models.users import Users
+
 
 todo_route =Blueprint('todos',__name__,url_prefix='/api/')
 
@@ -39,17 +45,23 @@ def get_todos():
         return {'result': todo_dicts}, 200
 
 
+def token():
+    current_user= get_jwt_identity()
+    print(current_user,'current_user_id')
+
 # Make a todo
 @todo_route.route("/todos",methods=['POST'])
+@jwt_required()
 def make_Todo():
+    token()
+
     try:
         data = request.json
 
         title = data.get('title')
         details = data.get('details')
         done = data.get('done')
-
-        new_todo = Todos(title=title ,details=details,done=done)
+        new_todo = Todos(title=title ,details=details,done=done,user_id=3)
 
         db.session.add(new_todo)
         db.session.commit()
