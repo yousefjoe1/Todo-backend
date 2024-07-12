@@ -13,55 +13,63 @@ todo_route =Blueprint('todos',__name__,url_prefix='/api/')
 
 # Get todos
 @todo_route.route("/todos",methods=['GET'])
+@jwt_required() 
 def get_todos():
-    number = request.args.get('number')  # Access the 'number' parameter
-    completed = request.args.get('completed')  # Access the 'number' parameter
 
-    if completed:
-        # Filter by completed status (assuming a boolean 'done' field in your Todo model)
-        try:
-            completed_value = bool(completed.lower())  # Convert 'completed' to boolean (case-insensitive)
-            my_todos = Todos.query.filter_by(done=completed_value).all()
+    try:
+
+        current_user= get_jwt_identity()
+
+        number = request.args.get('number')  # Access the 'number' parameter
+        completed = request.args.get('completed')  # Access the 'number' parameter
+        todos_with_auth = Todos.query.filter_by(user_id=current_user)
+
+        if completed:
+            # Filter by completed status (assuming a boolean 'done' field in your Todo model)
+            try:
+                completed_value = bool(completed.lower())  # Convert 'completed' to boolean (case-insensitive)
+                my_todos = todos_with_auth.filter_by(done=completed_value).all()
+                todo_dicts = [todo.to_json() for todo in my_todos]
+                return {'result': todo_dicts}, 200
+            except ValueError:
+                return jsonify({'message': 'Invalid completed value: Must be "true" or "false"'}), 400
+
+
+        if number:  # If a number query parameter is present
+            try:
+                number = int(number)  # Convert the string value to an integer
+                if number <= 0:
+                    return jsonify({'message': 'Invalid number: Must be positive'}), 400  # Handle invalid number
+                my_todos = todos_with_auth.limit(number).all()
+                todo_dicts = [todo.to_json() for todo in my_todos]
+                return {'result': todo_dicts}, 200
+            except ValueError:
+                return jsonify({'message': 'Invalid number format: Must be an integer'}), 400  # Handle non-integer input
+
+        else:  # If no number query parameter is provided
+            my_todos = todos_with_auth.all()
             todo_dicts = [todo.to_json() for todo in my_todos]
             return {'result': todo_dicts}, 200
-        except ValueError:
-            return jsonify({'message': 'Invalid completed value: Must be "true" or "false"'}), 400
+    except Exception as e:
+        print(e)
+        return {'error': e}, 422
 
+ 
 
-    if number:  # If a number query parameter is present
-        try:
-            number = int(number)  # Convert the string value to an integer
-            if number <= 0:
-                return jsonify({'message': 'Invalid number: Must be positive'}), 400  # Handle invalid number
-            my_todos = Todos.query.limit(number).all()
-            todo_dicts = [todo.to_json() for todo in my_todos]
-            return {'result': todo_dicts}, 200
-        except ValueError:
-            return jsonify({'message': 'Invalid number format: Must be an integer'}), 400  # Handle non-integer input
-
-    else:  # If no number query parameter is provided
-        my_todos = Todos.query.all()
-        todo_dicts = [todo.to_json() for todo in my_todos]
-        return {'result': todo_dicts}, 200
-
-
-def token():
-    current_user= get_jwt_identity()
-    print(current_user,'current_user_id')
 
 # Make a todo
 @todo_route.route("/todos",methods=['POST'])
 @jwt_required()
 def make_Todo():
-    token()
+
+    current_user= get_jwt_identity()
 
     try:
         data = request.json
-
         title = data.get('title')
         details = data.get('details')
         done = data.get('done')
-        new_todo = Todos(title=title ,details=details,done=done,user_id=3)
+        new_todo = Todos(title=title ,details=details,done=done,user_id=current_user)
 
         db.session.add(new_todo)
         db.session.commit()
@@ -73,21 +81,27 @@ def make_Todo():
 
 
 @todo_route.route("/todos/<int:id>",methods=['DELETE'])
+# @jwt_required()
 def delete_Todo(id):
-    try:
+    # current_user = get_jwt_identity()
 
+    try:
         todo = Todos.query.get(id)
-        if todo is None:
-            return jsonify({"error":"Not Exits"},404) # 404 mean not found
-        
+        # uid = todo.to_json()['user_id']
+        # if uid != current_user:
+        #     return jsonify({"error": "Unauthorized deletion"}), 401
+
+        # Delete the todo
         db.session.delete(todo)
         db.session.commit()
-        deleted_todo = todo.to_json()
-        return jsonify({"msg":f"Deleted {deleted_todo} "},404) # 404 mean not found
+        deleted_todo = todo.to_json()  # Convert to JSON for response
 
+        return jsonify({"message": f"Todo {deleted_todo} deleted successfully"}), 200
     except Exception as e:
+        # Rollback the session on error
         db.session.rollback()
-        return jsonify({"error":f"an error {e}"})
+        print(f'Error deleting todo: {e}')  # Log the error for debugging
+        return jsonify({"error": "An error occurred"}), 500
 
 
 @todo_route.route("/todos/<int:id>",methods=['GET'])

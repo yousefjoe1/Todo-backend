@@ -37,7 +37,6 @@ def create_user():
             return {e}
 
 
-     
 
 @user_route.route('/login',methods=['POST'])
 def login():
